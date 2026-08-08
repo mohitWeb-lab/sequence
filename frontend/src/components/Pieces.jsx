@@ -52,8 +52,9 @@ export function Cell({ cell, chip, legal, cut, locked, last, px, onClick }) {
       className={`cell cell-bg relative rounded-[3px] flex items-center justify-center aspect-square p-0${legal ? " legal" : ""}`}
       style={{
         cursor: legal ? "pointer" : "default",
-        outline: legal ? `2px solid ${cut ? "#D96A6A" : C.brass}` : "none",
+        outline: legal ? `2.5px solid ${cut ? "#f87171" : "#34d399"}` : "none",
         outlineOffset: -2,
+        boxShadow: legal ? `0 0 8px 2px ${cut ? "rgba(248,113,113,0.45)" : "rgba(52,211,153,0.45)"}` : "none",
       }}
       aria-label={`${cell.rank} of ${cell.suit}`}
     >
@@ -82,7 +83,22 @@ export function Cell({ cell, chip, legal, cut, locked, last, px, onClick }) {
       </span>
       {chip != null && (
         <span className={`${last ? "chip drop" : "chip"} absolute inset-0 flex items-center justify-center`}>
-          <Chip team={chip} size={px * 0.68} locked={locked} />
+          <span className="relative flex items-center justify-center">
+            <Chip team={chip} size={px * 0.68} locked={locked} />
+            <span
+              className="absolute inset-0 flex items-center justify-center"
+              style={{
+                fontSize: Math.max(9, px * 0.3),
+                fontFamily: '"Bodoni Moda", Didot, Georgia, serif',
+                color: "rgba(255,255,255,0.82)",
+                lineHeight: 1,
+                textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                pointerEvents: "none",
+              }}
+            >
+              {SUIT_GLYPH[cell.suit]}
+            </span>
+          </span>
         </span>
       )}
     </button>
