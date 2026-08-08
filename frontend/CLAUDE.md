@@ -7,13 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All commands require the nvm node binary — prefix with `PATH="/Users/mohit/.nvm/versions/node/v24.13.0/bin:$PATH"` or source nvm first.
 
 ```bash
-# Frontend (five-react/)
+# Frontend (frontend/)
 npm run dev       # Vite dev server on :5173
 npm run build     # Production build → dist/
 npm run preview   # Serve the dist/ build on :4173
 npm test          # Run engine unit tests (plain node, no framework)
 
-# Backend (five-server/)
+# Backend (backend/)
 npm run dev       # node --watch server.js  (auto-restart)
 npm start         # node server.js
 ```
@@ -26,10 +26,10 @@ To run a single engine test there is no filter flag — the test file is a singl
 
 | Directory | Purpose |
 |---|---|
-| `five-react/` | React + Vite frontend |
-| `five-server/` | Node.js + socket.io multiplayer backend |
+| `frontend/` | React + Vite frontend |
+| `backend/` | Node.js + socket.io multiplayer backend |
 
-`five-server/game/engine.js` is a **copy** of `five-react/src/game/engine.js`. If the engine changes, both files must be updated.
+`backend/game/engine.js` is a **copy** of `frontend/src/game/engine.js`. If the engine changes, both files must be updated.
 
 ### Frontend data flow
 
