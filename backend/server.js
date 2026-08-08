@@ -11,12 +11,26 @@ import {
 const app = express();
 const httpServer = createServer(app);
 
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:4173")
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "")
   .split(",")
-  .map((s) => s.trim());
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function isOriginAllowed(origin) {
+  if (!origin) return true; // server-to-server
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow any localhost port in development
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) return true;
+  return false;
+}
 
 const io = new Server(httpServer, {
-  cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST"] },
+  cors: {
+    origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
 });
 
 const PORT = process.env.PORT || 3001;
