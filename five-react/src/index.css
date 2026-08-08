@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── complex backgrounds (can't express cleanly in Tailwind) ── */
+.app-bg {
+  background: radial-gradient(1200px 700px at 50% -10%, #1E2B47 0%, #101728 55%, #0A0F1C 100%);
+}
+.app-grain {
+  background:
+    radial-gradient(circle at 20% 80%, rgba(201,154,74,.05), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(62,156,156,.05), transparent 45%);
+}
+.board-bg {
+  background: linear-gradient(160deg, #243352, #1B2740);
+  box-shadow: 0 20px 50px rgba(0,0,0,.55), inset 0 0 0 1px rgba(201,154,74,0.22);
+}
+.overlay-card-bg {
+  background: linear-gradient(160deg, #243352, #101728);
+}
+
+/* ── game board cell ── */
+.cell-bg {
+  background: linear-gradient(165deg, #F2EDE3 0%, #E3DCCD 100%);
+  box-shadow: 0 1px 1px rgba(0,0,0,.35);
+}
+.cell-corner-bg {
+  background: linear-gradient(165deg, #2B3A5C, #1A2438);
+  border: 1px solid rgba(201,154,74,0.22);
+}
+.hand-card-bg {
+  background: linear-gradient(165deg, #FAF6EE 0%, #E6DFD0 100%);
+}
+
+/* ── interactive states ── */
+.cell.legal:hover { filter: brightness(1.06); }
+button:focus-visible { outline: 2px solid #C99A4A !important; outline-offset: 2px; }
+
+/* ── animations ── */
+@keyframes drop {
+  0%   { transform: scale(1.8); opacity: 0 }
+  60%  { transform: scale(.92); opacity: 1 }
+  100% { transform: scale(1) }
+}
+.chip.drop > span { animation: drop .32s cubic-bezier(.2,.9,.3,1.2); }
+
+@keyframes dash { from { stroke-dashoffset: 60 } to { stroke-dashoffset: 0 } }
+.run-line { stroke-dasharray: 60; animation: dash .7s ease forwards; opacity: .9; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+.fade-up { animation: fadeUp .5s cubic-bezier(.2,.8,.3,1) both; }
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+.fade-in { animation: fadeIn .35s ease both; }
+
+@keyframes pulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+.think { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #C99A4A; animation: pulse 1s infinite; vertical-align: middle; }
+
+/* ── hand card interactions ── */
+.hand-card { transition: transform .18s cubic-bezier(.2,.8,.3,1), box-shadow .18s ease; }
+.hand-card:hover:not(:disabled) { transform: translateY(-8px) !important; }
+.mode-card { transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.mode-card:hover { transform: translateY(-3px); }
+.ghost:hover { color: #C99A4A; }
+
+::-webkit-scrollbar { height: 6px; width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(201,154,74,.3); border-radius: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
