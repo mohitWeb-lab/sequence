@@ -4,6 +4,8 @@ import { legalTargets, isDead, CARD_SLOTS, key } from "../game/engine.js";
 import { socket } from "../socket.js";
 import Table from "./Table.jsx";
 
+const SESSION_KEY = "mp_session";
+
 function hydrateState(gs) {
   gs.locked = new Set(gs.locked);
   return gs;
@@ -13,7 +15,11 @@ export default function MultiplayerGame() {
   const { code } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
-  const seatIdx = state?.seatIdx ?? 0;
+
+  // On refresh location.state may still be in browser history; fall back to localStorage
+  const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+  const seatIdx = state?.seatIdx ?? session.seatIdx ?? 0;
+  const playerName = state?.name || session.name || "";
 
   const [g, setG] = useState(() => state?.initialState ?? null);
   const [sel, setSel] = useState(null);
@@ -29,6 +35,7 @@ export default function MultiplayerGame() {
     return () => ro.disconnect();
   }, [g]);
 
+  // Socket event listeners — must be registered before the rejoin emit below
   useEffect(() => {
     function onUpdate(gs) { setG(hydrateState(gs)); }
     function onDisconnected({ name }) {
@@ -49,6 +56,25 @@ export default function MultiplayerGame() {
       socket.off("player_reconnected", onReconnected);
     };
   }, []);
+
+  // Persist session to localStorage and auto-rejoin after a page refresh
+  useEffect(() => {
+    if (code && playerName) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ code, seatIdx, name: playerName }));
+    }
+
+    if (!socket.connected) {
+      if (!playerName) { navigate("/lobby"); return; }
+      socket.connect();
+      socket.emit("join_room", { code, name: playerName }, (res) => {
+        if (res?.error) {
+          localStorage.removeItem(SESSION_KEY);
+          navigate("/lobby");
+        }
+        // Server sends game_updated on reconnect — onUpdate handler picks it up
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => setSel(null), [g?.turn]);
 
@@ -84,6 +110,7 @@ export default function MultiplayerGame() {
   };
 
   const onQuit = () => {
+    localStorage.removeItem(SESSION_KEY);
     socket.disconnect();
     navigate("/");
   };
@@ -92,7 +119,7 @@ export default function MultiplayerGame() {
     return (
       <div className="app-bg min-h-screen flex items-center justify-center text-ivory font-ui">
         <div className="text-center">
-          <div className="text-muted text-sm mb-2">Connecting to game…</div>
+          <div className="text-muted text-sm mb-2">Reconnecting to game…</div>
           <div className="text-brass text-xs tracking-widest uppercase">{code}</div>
         </div>
       </div>
