@@ -116,6 +116,138 @@ function WaitingModal({ code, players, onCancel }) {
   );
 }
 
+const MODE_INFO = {
+  duel:     { label: "Duel",     players: "2 players",       desc: "1v1 — first to link 2 runs of five wins." },
+  triangle: { label: "Triangle", players: "3 players",       desc: "3-way free-for-all — first to link 1 run wins." },
+  pairs:    { label: "Pairs",    players: "4 players (2v2)", desc: "Teammates share a chip colour. First team to link 2 runs wins." },
+};
+
+function CreateRoomModal({ name, onClose, onCreate }) {
+  const [playStyle, setPlayStyle] = useState("individual"); // "individual" | "team"
+  const [indivPlayers, setIndivPlayers] = useState(2);      // 2 | 3
+
+  const modeKey = playStyle === "team" ? "pairs" : indivPlayers === 2 ? "duel" : "triangle";
+  const info = MODE_INFO[modeKey];
+
+  return (
+    <div className="fixed inset-0 bg-[rgba(8,12,22,0.85)] backdrop-blur-md flex items-center justify-center p-5 z-50">
+      <div
+        className="rounded-[20px] p-[36px_32px] w-full max-w-[480px] shadow-2xl border"
+        style={{ background: "linear-gradient(160deg, #243352, #101728)", borderColor: "rgba(201,154,74,0.22)" }}
+      >
+        <h2 className="font-display font-black text-2xl text-ivory mb-1">Create Game Room</h2>
+        <p className="text-muted text-[13.5px] mb-7">Set up a new game and invite friends with a code.</p>
+
+        {/* Name display */}
+        <div className="mb-5">
+          <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-1.5">Playing as</div>
+          <div
+            className="rounded-[10px] px-4 py-2.5 text-ivory font-semibold text-[14px] border"
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(201,154,74,0.2)" }}
+          >
+            {name}
+          </div>
+        </div>
+
+        {/* Game Mode toggle */}
+        <div className="mb-5">
+          <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-2">Game Mode</div>
+          <div
+            className="flex rounded-[10px] p-[3px] gap-1"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,154,74,0.15)" }}
+          >
+            {[["individual", "Individual Play"], ["team", "Team Play"]].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setPlayStyle(val)}
+                className="flex-1 py-2 rounded-[8px] text-[13.5px] font-semibold cursor-pointer border-none transition-all"
+                style={{
+                  background: playStyle === val ? "rgba(201,154,74,0.18)" : "transparent",
+                  color: playStyle === val ? "#C99A4A" : "#7E8CA6",
+                  outline: playStyle === val ? "1px solid rgba(201,154,74,0.35)" : "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Individual: player count */}
+        {playStyle === "individual" && (
+          <div className="mb-5">
+            <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-2">Number of Players</div>
+            <div className="flex gap-3">
+              {[2, 3].map((n) => (
+                <label key={n} className="flex items-center gap-2 cursor-pointer">
+                  <span
+                    onClick={() => setIndivPlayers(n)}
+                    className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer"
+                    style={{ borderColor: indivPlayers === n ? "#C99A4A" : "rgba(255,255,255,0.25)" }}
+                  >
+                    {indivPlayers === n && (
+                      <span className="w-2 h-2 rounded-full" style={{ background: "#C99A4A" }} />
+                    )}
+                  </span>
+                  <span
+                    className="text-[13.5px] cursor-pointer"
+                    style={{ color: indivPlayers === n ? "#F2EDE3" : "#7E8CA6" }}
+                    onClick={() => setIndivPlayers(n)}
+                  >
+                    {n} Players
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Team Play: fixed at pairs (4 players, 2 teams) */}
+        {playStyle === "team" && (
+          <div className="mb-5">
+            <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-2">Teams</div>
+            <div
+              className="rounded-[10px] p-3 flex items-center gap-2 border"
+              style={{ background: "rgba(201,154,74,0.06)", borderColor: "rgba(201,154,74,0.2)" }}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#C99A4A" }} />
+              <span className="text-ivory text-[13.5px]">2 Teams of 2 — 4 players total</span>
+            </div>
+          </div>
+        )}
+
+        {/* Mode summary */}
+        <div
+          className="rounded-[10px] p-3.5 mb-6 border"
+          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-brass text-[12px] font-bold uppercase tracking-[.1em]">{info.label}</span>
+            <span className="text-muted text-[12px]">·</span>
+            <span className="text-muted text-[12px]">{info.players}</span>
+          </div>
+          <div className="text-[12.5px] text-muted leading-relaxed">{info.desc}</div>
+        </div>
+
+        {/* Actions */}
+        <button
+          onClick={() => onCreate(modeKey)}
+          className="w-full py-3.5 rounded-[10px] bg-brass text-[#191203] font-bold text-[15px] cursor-pointer border-none mb-2.5"
+        >
+          Create Room
+        </button>
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-[10px] text-muted text-[14px] cursor-pointer border-none"
+          style={{ background: "rgba(255,255,255,0.04)" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MultiplayerLobby() {
   const navigate = useNavigate();
 
@@ -124,6 +256,7 @@ export default function MultiplayerLobby() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Created room waiting state
   const [waitingRoom, setWaitingRoom] = useState(null); // { code, players[] }
@@ -169,12 +302,17 @@ export default function MultiplayerLobby() {
     setNameError("");
   };
 
-  const handleCreate = () => {
+  const openCreate = () => {
+    if (!name.trim()) { setNameError("Enter your name first."); return; }
+    setShowCreateModal(true);
+  };
+
+  const handleCreate = (modeKey) => {
     const n = name.trim();
-    if (!n) { setNameError("Enter your name first."); return; }
+    setShowCreateModal(false);
     setLoading(true);
     socket.connect();
-    socket.emit("create_room", { name: n, modeKey: "duel" }, (res) => {
+    socket.emit("create_room", { name: n, modeKey }, (res) => {
       setLoading(false);
       if (res?.error) {
         setNameError(res.error);
@@ -221,6 +359,14 @@ export default function MultiplayerLobby() {
   return (
     <div className="app-bg min-h-screen w-full font-ui relative overflow-x-hidden">
       <div className="app-grain fixed inset-0 pointer-events-none opacity-50" aria-hidden="true" />
+
+      {showCreateModal && (
+        <CreateRoomModal
+          name={name.trim()}
+          onClose={() => setShowCreateModal(false)}
+          onCreate={handleCreate}
+        />
+      )}
 
       {waitingRoom && (
         <WaitingModal
@@ -288,8 +434,8 @@ export default function MultiplayerLobby() {
 
             <div className="flex flex-col gap-2.5 flex-1">
               {[
-                ["👥", "2-player duel mode"],
-                ["●", "Invite via room code", "#C99A4A"],
+                ["👥", "Duel, Triangle or Pairs mode"],
+                ["●", "Individual or team play", "#C99A4A"],
                 ["●", "Game starts when room fills", "#C99A4A"],
               ].map(([icon, text, col]) => (
                 <div key={text} className="flex items-center gap-2.5 text-[13.5px] text-ivory-dim">
@@ -303,7 +449,7 @@ export default function MultiplayerLobby() {
             </div>
 
             <button
-              onClick={handleCreate}
+              onClick={openCreate}
               disabled={loading}
               className="mt-5 w-full py-3.5 rounded-[10px] bg-brass text-[#191203] font-bold text-[15px] cursor-pointer border-none tracking-[.03em] disabled:opacity-50"
             >
