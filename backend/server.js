@@ -11,10 +11,14 @@ import {
 const app = express();
 const httpServer = createServer(app);
 
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+const PRODUCTION_ORIGINS = [
+  "https://sequence-pi.vercel.app",
+];
+
+const ALLOWED_ORIGINS = [
+  ...PRODUCTION_ORIGINS,
+  ...(process.env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean),
+];
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // server-to-server
