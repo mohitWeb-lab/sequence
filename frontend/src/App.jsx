@@ -7,6 +7,7 @@ import { chooseMove } from "./game/ai.js";
 import Menu from "./components/Menu.jsx";
 import Table from "./components/Table.jsx";
 import MultiplayerLobby from "./components/MultiplayerLobby.jsx";
+import MultiplayerGame from "./components/MultiplayerGame.jsx";
 
 const BOT_DELAY = 780;
 const SAVE_KEY = "sequence_game_save";
@@ -132,6 +133,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<GameApp />} />
       <Route path="/lobby" element={<MultiplayerLobby />} />
+      <Route path="/play/:code" element={<MultiplayerGame />} />
     </Routes>
   );
 }

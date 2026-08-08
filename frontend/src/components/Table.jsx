@@ -6,13 +6,16 @@ import RulesModal from "./RulesModal.jsx";
 
 export default function Table({
   g, sel, selCard, legal, cellPx, boardRef, myTurn,
-  onCell, onCard, flash, onQuit, onAgain,
+  onCell, onCard, flash, onQuit, onAgain, playerSeat,
 }) {
   const [showRules, setShowRules] = useState(false);
   const mode = MODES[g.modeKey];
   const active = g.seats[g.turn];
   const over = g.winner != null;
-  const shownHand = active.human ? g.hands[g.turn] : g.hands[0];
+  const myHandIdx = playerSeat ?? 0;
+  const shownHand = playerSeat != null
+    ? g.hands[playerSeat]
+    : (active.human ? g.hands[g.turn] : g.hands[0]);
 
   return (
     <div className="relative max-w-[620px] mx-auto px-3 pb-7 pt-3.5">
@@ -207,7 +210,7 @@ export default function Table({
               Game over
             </div>
             <h2 className="font-display font-black text-[44px] leading-none my-1.5">
-              {g.winner === -1 ? "Called" : g.winner === g.seats[0].team ? "You win" : "You lose"}
+              {g.winner === -1 ? "Called" : g.winner === g.seats[myHandIdx].team ? "You win" : "You lose"}
             </h2>
             <p className="text-muted text-[15px] leading-relaxed max-w-[460px] mx-auto">
               {g.winner === -1

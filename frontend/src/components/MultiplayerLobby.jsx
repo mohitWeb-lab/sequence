@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { socket } from "../socket.js";
 
 function MiniBoard() {
   return (
@@ -25,7 +26,7 @@ function MiniBoard() {
   );
 }
 
-function RoomCreatedModal({ code, onClose }) {
+function WaitingModal({ code, players, onCancel }) {
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -36,10 +37,7 @@ function RoomCreatedModal({ code, onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-[rgba(8,12,22,0.82)] backdrop-blur-md flex items-center justify-center p-5 z-50"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <div className="fixed inset-0 bg-[rgba(8,12,22,0.82)] backdrop-blur-md flex items-center justify-center p-5 z-50">
       <div
         className="rounded-[20px] p-[36px_32px] w-full max-w-[440px] shadow-2xl flex flex-col items-center text-center border"
         style={{
@@ -47,7 +45,6 @@ function RoomCreatedModal({ code, onClose }) {
           borderColor: "rgba(201,154,74,0.22)",
         }}
       >
-        {/* brass circle */}
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center text-[26px] mb-5 font-bold"
           style={{ background: "rgba(201,154,74,0.15)", color: "#C99A4A", border: "1px solid rgba(201,154,74,0.3)" }}
@@ -57,10 +54,9 @@ function RoomCreatedModal({ code, onClose }) {
 
         <h2 className="font-display font-black text-2xl text-ivory mb-1.5">Room Created!</h2>
         <p className="text-muted text-[14px] leading-relaxed mb-6">
-          Share this code with your friends so they can join your game.
+          Share this code with your friends so they can join.
         </p>
 
-        {/* code block */}
         <div
           className="w-full rounded-[14px] p-5 mb-5 border"
           style={{ background: "rgba(201,154,74,0.06)", borderColor: "rgba(201,154,74,0.22)" }}
@@ -84,76 +80,184 @@ function RoomCreatedModal({ code, onClose }) {
           </button>
         </div>
 
-        {/* waiting */}
+        <div className="w-full mb-5 text-left">
+          <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-2">Players joined</div>
+          {players.map((p) => (
+            <div key={p.seatIdx} className="flex items-center gap-2 py-1.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ background: "#4FB98A", boxShadow: "0 0 6px #4FB98A" }}
+              />
+              <span className="text-ivory text-[14px]">{p.name}</span>
+              {p.seatIdx === 0 && (
+                <span className="text-muted text-[11px] ml-auto">(you, host)</span>
+              )}
+            </div>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2 text-muted text-[13px] mb-6">
           <span
-            className="w-2 h-2 rounded-full inline-block"
+            className="w-2 h-2 rounded-full inline-block shrink-0"
             style={{ background: "#4FB98A", boxShadow: "0 0 8px #4FB98A", animation: "pulse 1.4s ease-in-out infinite" }}
           />
           Waiting for players to join…
         </div>
 
-        {/* info chips */}
-        <div className="flex gap-2.5 w-full mb-6">
-          {[["Players", "2 – 4"], ["Mode", "Classic"], ["Runs", "2 to win"]].map(([label, val]) => (
-            <div
-              key={label}
-              className="flex-1 rounded-[10px] py-2.5 px-2 text-center border"
-              style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(201,154,74,0.18)" }}
-            >
-              <div className="text-[10px] uppercase tracking-[.12em] text-muted mb-1">{label}</div>
-              <div className="text-[14px] font-bold text-ivory">{val}</div>
-            </div>
-          ))}
-        </div>
-
         <button
-          onClick={onClose}
-          className="w-full py-3 rounded-[10px] bg-brass text-[#191203] font-bold text-[14px] cursor-pointer border-none"
+          onClick={onCancel}
+          className="w-full py-3 rounded-[10px] border text-muted text-[14px] cursor-pointer"
+          style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
         >
-          Close
+          Cancel
         </button>
       </div>
     </div>
   );
 }
 
-function randomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
-
 export default function MultiplayerLobby() {
   const navigate = useNavigate();
+
+  const [name, setName] = useState(() => localStorage.getItem("mp_name") || "");
+  const [nameError, setNameError] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
-  const [roomCode, setRoomCode] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleCreate = () => setRoomCode(randomCode());
+  // Created room waiting state
+  const [waitingRoom, setWaitingRoom] = useState(null); // { code, players[] }
+
+  // Refs so event handlers always see current values
+  const pendingRef = useRef(null); // { code, seatIdx }
+  const initialStateRef = useRef(null);
+  const nameRef = useRef(name);
+  useEffect(() => { nameRef.current = name; }, [name]);
+
+  useEffect(() => {
+    function onUpdate(gs) {
+      gs.locked = new Set(gs.locked);
+      initialStateRef.current = gs;
+    }
+    function onPlayerJoined({ name: pName, seatIdx }) {
+      setWaitingRoom((prev) =>
+        prev ? { ...prev, players: [...prev.players.filter((p) => p.seatIdx !== seatIdx), { name: pName, seatIdx }] } : prev
+      );
+    }
+    function onGameStarted() {
+      if (!pendingRef.current) return;
+      const { code, seatIdx } = pendingRef.current;
+      navigate(`/play/${code}`, {
+        state: { seatIdx, name: nameRef.current.trim(), initialState: initialStateRef.current },
+      });
+    }
+
+    socket.on("game_updated", onUpdate);
+    socket.on("player_joined", onPlayerJoined);
+    socket.on("game_started", onGameStarted);
+    return () => {
+      socket.off("game_updated", onUpdate);
+      socket.off("player_joined", onPlayerJoined);
+      socket.off("game_started", onGameStarted);
+    };
+  }, [navigate]);
+
+  const saveName = (v) => {
+    setName(v);
+    nameRef.current = v;
+    localStorage.setItem("mp_name", v);
+    setNameError("");
+  };
+
+  const handleCreate = () => {
+    const n = name.trim();
+    if (!n) { setNameError("Enter your name first."); return; }
+    setLoading(true);
+    socket.connect();
+    socket.emit("create_room", { name: n, modeKey: "duel" }, (res) => {
+      setLoading(false);
+      if (res?.error) {
+        setNameError(res.error);
+        socket.disconnect();
+        return;
+      }
+      pendingRef.current = { code: res.code, seatIdx: res.seatIdx };
+      setWaitingRoom({ code: res.code, players: [{ name: n, seatIdx: 0 }] });
+    });
+  };
 
   const handleJoin = () => {
+    const n = name.trim();
     const t = joinCode.trim().toUpperCase();
-    if (t.length < 4) { setJoinError("Please enter a valid room code."); return; }
+    if (!n) { setNameError("Enter your name first."); return; }
+    if (t.length < 4) { setJoinError("Enter a valid room code."); return; }
     setJoinError("");
-    alert(`Joining room ${t}… (multiplayer backend coming soon)`);
+    setLoading(true);
+    socket.connect();
+    socket.emit("join_room", { code: t, name: n }, (res) => {
+      setLoading(false);
+      if (res?.error) {
+        setJoinError(res.error);
+        socket.disconnect();
+        return;
+      }
+      pendingRef.current = { code: t, seatIdx: res.seatIdx };
+      if (res.reconnected || res.status === "playing") {
+        navigate(`/play/${t}`, {
+          state: { seatIdx: res.seatIdx, name: n, initialState: initialStateRef.current },
+        });
+      }
+      // Otherwise wait for game_started event
+    });
+  };
+
+  const handleCancel = () => {
+    socket.disconnect();
+    pendingRef.current = null;
+    initialStateRef.current = null;
+    setWaitingRoom(null);
   };
 
   return (
     <div className="app-bg min-h-screen w-full font-ui relative overflow-x-hidden">
       <div className="app-grain fixed inset-0 pointer-events-none opacity-50" aria-hidden="true" />
 
-      {roomCode && <RoomCreatedModal code={roomCode} onClose={() => setRoomCode(null)} />}
+      {waitingRoom && (
+        <WaitingModal
+          code={waitingRoom.code}
+          players={waitingRoom.players}
+          onCancel={handleCancel}
+        />
+      )}
 
       <div className="relative flex flex-col items-center justify-center min-h-screen px-5 py-12">
-        {/* heading */}
         <div className="text-[11px] tracking-[0.26em] uppercase text-brass font-semibold mb-3">
           Chips · Cards · Five in a row
         </div>
         <h1 className="font-display font-black text-center text-ivory mb-2.5" style={{ fontSize: "clamp(32px, 6vw, 56px)" }}>
           Ready to Play <span className="text-brass">FIVE</span>?
         </h1>
-        <p className="text-muted text-[15px] text-center leading-relaxed mb-10 max-w-[460px]">
+        <p className="text-muted text-[15px] text-center leading-relaxed mb-6 max-w-[460px]">
           Choose how you'd like to start your game
         </p>
+
+        {/* shared name input */}
+        <div className="w-full max-w-[860px] mb-6">
+          <div
+            className="rounded-[14px] p-4 flex items-center gap-3 border"
+            style={{ background: "rgba(255,255,255,0.03)", borderColor: nameError ? "rgba(220,80,80,0.5)" : "rgba(201,154,74,0.22)" }}
+          >
+            <span className="text-muted text-[13px] shrink-0 w-[72px]">Your name</span>
+            <input
+              value={name}
+              onChange={(e) => saveName(e.target.value)}
+              placeholder="Enter your name…"
+              maxLength={24}
+              className="flex-1 bg-transparent outline-none text-ivory text-[14px] font-semibold placeholder:text-muted placeholder:font-normal"
+            />
+            {nameError && <span className="text-[#e06060] text-[12px] shrink-0">{nameError}</span>}
+          </div>
+        </div>
 
         {/* cards row */}
         <div className="flex gap-4 w-full max-w-[860px] flex-wrap items-stretch">
@@ -184,9 +288,9 @@ export default function MultiplayerLobby() {
 
             <div className="flex flex-col gap-2.5 flex-1">
               {[
-                ["👥", "Support for 2–12 players"],
-                ["●", "Individual and team play modes", "#C99A4A"],
-                ["●", "Custom game settings", "#C99A4A"],
+                ["👥", "2-player duel mode"],
+                ["●", "Invite via room code", "#C99A4A"],
+                ["●", "Game starts when room fills", "#C99A4A"],
               ].map(([icon, text, col]) => (
                 <div key={text} className="flex items-center gap-2.5 text-[13.5px] text-ivory-dim">
                   {col
@@ -200,9 +304,10 @@ export default function MultiplayerLobby() {
 
             <button
               onClick={handleCreate}
-              className="mt-5 w-full py-3.5 rounded-[10px] bg-brass text-[#191203] font-bold text-[15px] cursor-pointer border-none tracking-[.03em]"
+              disabled={loading}
+              className="mt-5 w-full py-3.5 rounded-[10px] bg-brass text-[#191203] font-bold text-[15px] cursor-pointer border-none tracking-[.03em] disabled:opacity-50"
             >
-              Create Game Room
+              {loading ? "Creating…" : "Create Game Room"}
             </button>
           </div>
 
@@ -225,10 +330,9 @@ export default function MultiplayerLobby() {
               Join Existing Game
             </h2>
             <p className="text-muted text-[13.5px] text-center leading-relaxed mb-5">
-              Enter a room code to join a game with friends
+              Enter a room code to join a friend's game
             </p>
 
-            {/* code input block */}
             <div
               className="rounded-[14px] p-5 text-center mb-5 border"
               style={{ background: "rgba(201,154,74,0.05)", borderColor: "rgba(201,154,74,0.18)" }}
@@ -245,14 +349,14 @@ export default function MultiplayerLobby() {
                   fontFamily: '"Courier New", monospace',
                   background: "rgba(201,154,74,0.12)",
                   color: "#C99A4A",
-                  borderColor: "rgba(201,154,74,0.35)",
+                  borderColor: joinError ? "rgba(220,80,80,0.5)" : "rgba(201,154,74,0.35)",
                   caretColor: "#C99A4A",
                 }}
               />
               <div className="text-brass text-[12.5px] font-medium mt-2 opacity-70">
-                Enter room code like this
+                Enter the code shared by your friend
               </div>
-              {joinError && <div className="text-[#e06060] text-[12px] mt-1">{joinError}</div>}
+              {joinError && <div className="text-[#e06060] text-[12px] mt-1.5 font-medium">{joinError}</div>}
             </div>
 
             <div className="flex flex-col gap-2.5 flex-1">
@@ -270,19 +374,19 @@ export default function MultiplayerLobby() {
 
             <button
               onClick={handleJoin}
-              className="mt-5 w-full py-3.5 rounded-[10px] font-bold text-[15px] cursor-pointer border tracking-[.03em] transition-colors"
+              disabled={loading}
+              className="mt-5 w-full py-3.5 rounded-[10px] font-bold text-[15px] cursor-pointer border tracking-[.03em] transition-colors disabled:opacity-50"
               style={{
                 background: "rgba(201,154,74,0.12)",
                 color: "#C99A4A",
                 borderColor: "rgba(201,154,74,0.35)",
               }}
             >
-              Join Game Room
+              {loading ? "Joining…" : "Join Game Room"}
             </button>
           </div>
         </div>
 
-        {/* back */}
         <button
           onClick={() => navigate("/")}
           className="mt-9 px-6 py-2.5 rounded-full border text-muted text-[13px] cursor-pointer tracking-[.04em] ghost"
