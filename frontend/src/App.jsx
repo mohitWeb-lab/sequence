@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import {
   newGame, applyMove, exchangeDead, passTurn, legalTargets, isDead,
+  CARD_SLOTS, key, isCutJack, isWildJack,
 } from "./game/engine.js";
 import { chooseMove } from "./game/ai.js";
 import Menu from "./components/Menu.jsx";
@@ -83,6 +84,12 @@ function GameApp() {
     [g, selCard]
   );
 
+  const occupiedSlots = useMemo(() => {
+    if (!g || !selCard || selCard.rank === "J") return new Set();
+    const slots = CARD_SLOTS.get(key(selCard.rank, selCard.suit)) || [];
+    return new Set(slots.filter((i) => g.chips[i] != null));
+  }, [g, selCard]);
+
   const onCell = (i) => {
     if (!myTurn || sel == null || !legal.has(i)) return;
     setG((cur) => applyMove(cur, sel, i));
@@ -114,6 +121,7 @@ function GameApp() {
           sel={sel}
           selCard={selCard}
           legal={legal}
+          occupiedSlots={occupiedSlots}
           cellPx={cellPx}
           boardRef={boardRef}
           myTurn={myTurn}

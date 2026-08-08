@@ -33,7 +33,7 @@ export function CardFace({ card }) {
   );
 }
 
-export function Cell({ cell, chip, legal, cut, locked, last, px, onClick }) {
+export function Cell({ cell, chip, legal, occupied, cut, locked, last, px, onClick }) {
   const rankSize = Math.max(8, px * 0.3);
   const suitSize = Math.max(11, px * 0.42);
 
@@ -52,7 +52,11 @@ export function Cell({ cell, chip, legal, cut, locked, last, px, onClick }) {
       className={`cell cell-bg relative rounded-[3px] flex items-center justify-center aspect-square p-0${legal ? " legal" : ""}`}
       style={{
         cursor: legal ? "pointer" : "default",
-        outline: legal ? `2.5px solid ${cut ? "#f87171" : "#34d399"}` : "none",
+        outline: legal
+          ? `2.5px solid ${cut ? "#f87171" : "#34d399"}`
+          : occupied
+          ? "2px dashed rgba(201,154,74,0.7)"
+          : "none",
         outlineOffset: -2,
         boxShadow: legal ? `0 0 8px 2px ${cut ? "rgba(248,113,113,0.45)" : "rgba(52,211,153,0.45)"}` : "none",
       }}

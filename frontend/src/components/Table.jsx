@@ -5,7 +5,7 @@ import { Chip, CardFace, Cell } from "./Pieces.jsx";
 import RulesModal from "./RulesModal.jsx";
 
 export default function Table({
-  g, sel, selCard, legal, cellPx, boardRef, myTurn,
+  g, sel, selCard, legal, occupiedSlots = new Set(), cellPx, boardRef, myTurn,
   onCell, onCard, flash, onQuit, onAgain, playerSeat,
 }) {
   const [showRules, setShowRules] = useState(false);
@@ -94,6 +94,7 @@ export default function Table({
               cell={cell}
               chip={g.chips[i]}
               legal={legal.has(i)}
+              occupied={occupiedSlots.has(i)}
               cut={selCard && isCutJack(selCard) && legal.has(i)}
               locked={g.locked.has(i)}
               last={g.lastPlay?.idx === i}

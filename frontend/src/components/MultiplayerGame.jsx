@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { legalTargets, isDead } from "../game/engine.js";
+import { legalTargets, isDead, CARD_SLOTS, key } from "../game/engine.js";
 import { socket } from "../socket.js";
 import Table from "./Table.jsx";
 
@@ -59,6 +59,12 @@ export default function MultiplayerGame() {
     [g, selCard]
   );
 
+  const occupiedSlots = useMemo(() => {
+    if (!g || !selCard || selCard.rank === "J") return new Set();
+    const slots = CARD_SLOTS.get(key(selCard.rank, selCard.suit)) || [];
+    return new Set(slots.filter((i) => g.chips[i] != null));
+  }, [g, selCard]);
+
   const onCell = (i) => {
     if (!myTurn || sel == null || !legal.has(i)) return;
     socket.emit("make_move", { code, cardIdx: sel, boardIdx: i });
@@ -101,6 +107,7 @@ export default function MultiplayerGame() {
         sel={sel}
         selCard={selCard}
         legal={legal}
+        occupiedSlots={occupiedSlots}
         cellPx={cellPx}
         boardRef={boardRef}
         myTurn={myTurn}
