@@ -33,7 +33,7 @@
 }
 
 /* ── interactive states ── */
-.cell.legal:hover { filter: brightness(1.06); }
+.cell.legal:hover { filter: brightness(1.12); }
 button:focus-visible { outline: 2px solid #C99A4A !important; outline-offset: 2px; }
 
 /* ── animations ── */
@@ -59,9 +59,49 @@ button:focus-visible { outline: 2px solid #C99A4A !important; outline-offset: 2p
 /* ── hand card interactions ── */
 .hand-card { transition: transform .18s cubic-bezier(.2,.8,.3,1), box-shadow .18s ease; }
 .hand-card:hover:not(:disabled) { transform: translateY(-8px) !important; }
-.mode-card { transition: border-color .2s ease, background .2s ease, transform .2s ease; }
-.mode-card:hover { transform: translateY(-3px); }
+.mode-card { transition: border-color .25s ease, background .25s ease, transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s ease; }
+.mode-card:hover { transform: translateY(-5px); }
 .ghost:hover { color: #C99A4A; }
+
+/* ── menu page animations ── */
+@keyframes floatUp {
+  0%   { transform: translateY(0)   rotate(0deg);  opacity: 0; }
+  15%  { opacity: var(--chip-opacity, 0.18); }
+  85%  { opacity: var(--chip-opacity, 0.18); }
+  100% { transform: translateY(-110vh) rotate(20deg); opacity: 0; }
+}
+.float-chip { animation: floatUp var(--dur, 16s) var(--delay, 0s) ease-in infinite; }
+
+@keyframes shimmerGold {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.title-shimmer {
+  background: linear-gradient(90deg, #C99A4A 20%, #F3C878 45%, #fff8e7 50%, #F3C878 55%, #C99A4A 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerGold 3.5s linear infinite;
+}
+
+@keyframes softPulse { 0%,100% { opacity:.5; transform:scale(1) } 50% { opacity:1; transform:scale(1.15) } }
+.live-dot { animation: softPulse 1.8s ease-in-out infinite; }
+
+@keyframes slideRight { from { transform:translateX(0) } to { transform:translateX(5px) } }
+.arrow-hint { display:inline-block; transition: transform .2s ease; }
+.mode-card:hover .arrow-hint { animation: slideRight .5s ease-in-out infinite alternate; }
+
+/* staggered entrance delays */
+.delay-0  { animation-delay: 0s; }
+.delay-1  { animation-delay: .1s; }
+.delay-2  { animation-delay: .2s; }
+.delay-3  { animation-delay: .32s; }
+.delay-4  { animation-delay: .44s; }
+.delay-5  { animation-delay: .56s; }
+.delay-6  { animation-delay: .68s; }
+.delay-7  { animation-delay: .8s; }
+.delay-8  { animation-delay: .9s; }
 
 ::-webkit-scrollbar { height: 6px; width: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(201,154,74,.3); border-radius: 3px; }
