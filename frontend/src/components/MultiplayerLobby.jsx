@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { socket } from "../socket.js";
 
 function MiniBoard() {
@@ -122,12 +123,17 @@ const MODE_INFO = {
   pairs:    { label: "Pairs",    players: "4 players (2v2)", desc: "Teammates share a chip colour. First team to link 2 runs wins." },
 };
 
-function CreateRoomModal({ name, onClose, onCreate }) {
+function CreateRoomModal({ name, onNameChange, onClose, onCreate }) {
   const [playStyle, setPlayStyle] = useState("individual"); // "individual" | "team"
   const [indivPlayers, setIndivPlayers] = useState(2);      // 2 | 3
 
   const modeKey = playStyle === "team" ? "pairs" : indivPlayers === 2 ? "duel" : "triangle";
   const info = MODE_INFO[modeKey];
+
+  const handleCreate = () => {
+    if (!name.trim()) { toast.error("Enter your name before creating a room."); return; }
+    onCreate(modeKey);
+  };
 
   return (
     <div className="fixed inset-0 bg-[rgba(8,12,22,0.85)] backdrop-blur-md flex items-center justify-center p-5 z-50">
@@ -138,15 +144,17 @@ function CreateRoomModal({ name, onClose, onCreate }) {
         <h2 className="font-display font-black text-2xl text-ivory mb-1">Create Game Room</h2>
         <p className="text-muted text-[13.5px] mb-7">Set up a new game and invite friends with a code.</p>
 
-        {/* Name display */}
+        {/* Editable name */}
         <div className="mb-5">
-          <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-1.5">Playing as</div>
-          <div
-            className="rounded-[10px] px-4 py-2.5 text-ivory font-semibold text-[14px] border"
-            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(201,154,74,0.2)" }}
-          >
-            {name}
-          </div>
+          <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-1.5">Your Name</div>
+          <input
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Enter your name…"
+            maxLength={24}
+            className="w-full rounded-[10px] px-4 py-2.5 text-ivory font-semibold text-[14px] border outline-none box-border"
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(201,154,74,0.2)", caretColor: "#C99A4A" }}
+          />
         </div>
 
         {/* Game Mode toggle */}
@@ -231,7 +239,7 @@ function CreateRoomModal({ name, onClose, onCreate }) {
 
         {/* Actions */}
         <button
-          onClick={() => onCreate(modeKey)}
+          onClick={handleCreate}
           className="w-full py-3.5 rounded-[10px] bg-brass text-[#191203] font-bold text-[15px] cursor-pointer border-none mb-2.5"
         >
           Create Room
@@ -252,9 +260,7 @@ export default function MultiplayerLobby() {
   const navigate = useNavigate();
 
   const [name, setName] = useState(() => localStorage.getItem("mp_name") || "");
-  const [nameError, setNameError] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [joinError, setJoinError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -276,6 +282,7 @@ export default function MultiplayerLobby() {
       setWaitingRoom((prev) =>
         prev ? { ...prev, players: [...prev.players.filter((p) => p.seatIdx !== seatIdx), { name: pName, seatIdx }] } : prev
       );
+      toast.success(`${pName} joined the room!`);
     }
     function onGameStarted() {
       if (!pendingRef.current) return;
@@ -299,13 +306,9 @@ export default function MultiplayerLobby() {
     setName(v);
     nameRef.current = v;
     localStorage.setItem("mp_name", v);
-    setNameError("");
   };
 
-  const openCreate = () => {
-    if (!name.trim()) { setNameError("Enter your name first."); return; }
-    setShowCreateModal(true);
-  };
+  const openCreate = () => setShowCreateModal(true);
 
   const handleCreate = (modeKey) => {
     const n = name.trim();
@@ -315,10 +318,11 @@ export default function MultiplayerLobby() {
     socket.emit("create_room", { name: n, modeKey }, (res) => {
       setLoading(false);
       if (res?.error) {
-        setNameError(res.error);
+        toast.error(res.error);
         socket.disconnect();
         return;
       }
+      toast.success("Room created! Share the code with friends.");
       pendingRef.current = { code: res.code, seatIdx: res.seatIdx };
       setWaitingRoom({ code: res.code, players: [{ name: n, seatIdx: 0 }] });
     });
@@ -327,15 +331,14 @@ export default function MultiplayerLobby() {
   const handleJoin = () => {
     const n = name.trim();
     const t = joinCode.trim().toUpperCase();
-    if (!n) { setNameError("Enter your name first."); return; }
-    if (t.length < 4) { setJoinError("Enter a valid room code."); return; }
-    setJoinError("");
+    if (!n) { toast.error("Enter your name before joining."); return; }
+    if (t.length < 4) { toast.error("Enter a valid room code."); return; }
     setLoading(true);
     socket.connect();
     socket.emit("join_room", { code: t, name: n }, (res) => {
       setLoading(false);
       if (res?.error) {
-        setJoinError(res.error);
+        toast.error(res.error);
         socket.disconnect();
         return;
       }
@@ -362,7 +365,8 @@ export default function MultiplayerLobby() {
 
       {showCreateModal && (
         <CreateRoomModal
-          name={name.trim()}
+          name={name}
+          onNameChange={saveName}
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreate}
         />
@@ -386,24 +390,6 @@ export default function MultiplayerLobby() {
         <p className="text-muted text-[15px] text-center leading-relaxed mb-6 max-w-[460px]">
           Choose how you'd like to start your game
         </p>
-
-        {/* shared name input */}
-        <div className="w-full max-w-[860px] mb-6">
-          <div
-            className="rounded-[14px] p-4 flex items-center gap-3 border"
-            style={{ background: "rgba(255,255,255,0.03)", borderColor: nameError ? "rgba(220,80,80,0.5)" : "rgba(201,154,74,0.22)" }}
-          >
-            <span className="text-muted text-[13px] shrink-0 w-[72px]">Your name</span>
-            <input
-              value={name}
-              onChange={(e) => saveName(e.target.value)}
-              placeholder="Enter your name…"
-              maxLength={24}
-              className="flex-1 bg-transparent outline-none text-ivory text-[14px] font-semibold placeholder:text-muted placeholder:font-normal"
-            />
-            {nameError && <span className="text-[#e06060] text-[12px] shrink-0">{nameError}</span>}
-          </div>
-        </div>
 
         {/* cards row */}
         <div className="flex gap-4 w-full max-w-[860px] flex-wrap items-stretch">
@@ -480,29 +466,45 @@ export default function MultiplayerLobby() {
             </p>
 
             <div
-              className="rounded-[14px] p-5 text-center mb-5 border"
+              className="rounded-[14px] p-5 mb-5 border flex flex-col gap-3"
               style={{ background: "rgba(201,154,74,0.05)", borderColor: "rgba(201,154,74,0.18)" }}
             >
-              <input
-                value={joinCode}
-                onChange={(e) => { setJoinCode(e.target.value.toUpperCase()); setJoinError(""); }}
-                onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                placeholder="ABC123"
-                maxLength={8}
-                spellCheck={false}
-                className="w-full text-center font-black text-[28px] tracking-[0.18em] rounded-lg py-3 px-4 border outline-none uppercase box-border"
-                style={{
-                  fontFamily: '"Courier New", monospace',
-                  background: "rgba(201,154,74,0.12)",
-                  color: "#C99A4A",
-                  borderColor: joinError ? "rgba(220,80,80,0.5)" : "rgba(201,154,74,0.35)",
-                  caretColor: "#C99A4A",
-                }}
-              />
-              <div className="text-brass text-[12.5px] font-medium mt-2 opacity-70">
-                Enter the code shared by your friend
+              {/* Name */}
+              <div>
+                <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-1.5">Your Name</div>
+                <input
+                  value={name}
+                  onChange={(e) => saveName(e.target.value)}
+                  placeholder="Enter your name…"
+                  maxLength={24}
+                  className="w-full rounded-lg px-3 py-2.5 text-ivory font-semibold text-[14px] border outline-none box-border"
+                  style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(201,154,74,0.25)", caretColor: "#C99A4A" }}
+                />
               </div>
-              {joinError && <div className="text-[#e06060] text-[12px] mt-1.5 font-medium">{joinError}</div>}
+
+              {/* Code */}
+              <div className="text-center">
+                <div className="text-[11px] uppercase tracking-[.12em] text-muted mb-1.5">Room Code</div>
+                <input
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                  placeholder="ABC123"
+                  maxLength={8}
+                  spellCheck={false}
+                  className="w-full text-center font-black text-[28px] tracking-[0.18em] rounded-lg py-3 px-4 border outline-none uppercase box-border"
+                  style={{
+                    fontFamily: '"Courier New", monospace',
+                    background: "rgba(201,154,74,0.12)",
+                    color: "#C99A4A",
+                    borderColor: "rgba(201,154,74,0.35)",
+                    caretColor: "#C99A4A",
+                  }}
+                />
+                <div className="text-brass text-[12px] font-medium mt-1.5 opacity-70">
+                  Enter the code shared by your friend
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2.5 flex-1">
