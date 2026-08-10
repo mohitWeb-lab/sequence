@@ -8,7 +8,6 @@ export const SUITS = ["S", "H", "D", "C"];
 export const SUIT_GLYPH = { S: "\u2660", H: "\u2665", D: "\u2666", C: "\u2663" };
 export const SUIT_RED = { S: false, H: true, D: true, C: false };
 
-const BOARD_RANKS = ["A", "K", "Q", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
 const ALL_RANKS = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
 
 export const key = (rank, suit) => `${rank}${suit}`;
@@ -18,31 +17,26 @@ export const isCutJack = (c) => c.rank === "J" && (c.suit === "H" || c.suit === 
 export const CORNERS = new Set([0, 9, 90, 99]);
 
 /* ---------- board ---------- */
-/* Seeded so the layout is identical every game — strategy stays learnable. */
-function mulberry32(a) {
-  return function () {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/* The standard printed Sequence board layout — identical on every physical set. */
+const BOARD_LAYOUT = [
+  "F", "2S", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "F",
+  "6C", "5C", "4C", "3C", "2C", "AH", "KH", "QH", "10H", "10S",
+  "7C", "AS", "2D", "3D", "4D", "5D", "6D", "7D", "9H", "QS",
+  "8C", "KS", "6C", "5C", "4C", "3C", "2C", "8D", "8H", "KS",
+  "9C", "QS", "7C", "6H", "5H", "4H", "AH", "9D", "7H", "AS",
+  "10C", "10S", "8C", "7H", "2H", "3H", "KH", "10D", "6H", "2D",
+  "QC", "9S", "9C", "8H", "9H", "10H", "QH", "QD", "5H", "3D",
+  "KC", "8S", "10C", "QC", "KC", "AC", "AD", "KD", "4H", "4D",
+  "AC", "7S", "6S", "5S", "4S", "3S", "2S", "2H", "3H", "5D",
+  "F", "AD", "KD", "QD", "10D", "9D", "8D", "7D", "6D", "F",
+];
 
-export const BOARD = (() => {
-  const pool = [];
-  for (const s of SUITS) for (const r of BOARD_RANKS) pool.push({ rank: r, suit: s });
-  const twice = [...pool, ...pool];
-  const rnd = mulberry32(20260808);
-  for (let i = twice.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    [twice[i], twice[j]] = [twice[j], twice[i]];
-  }
-  const cells = new Array(100);
-  let p = 0;
-  for (let i = 0; i < 100; i++) cells[i] = CORNERS.has(i) ? { corner: true } : twice[p++];
-  return cells;
-})();
+export const BOARD = BOARD_LAYOUT.map((cell) => {
+  if (cell === "F") return { corner: true };
+  const suit = cell.slice(-1);
+  const rank = cell.slice(0, -1);
+  return { rank, suit };
+});
 
 /** card key -> the two board indices holding it */
 export const CARD_SLOTS = (() => {
